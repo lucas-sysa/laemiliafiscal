@@ -366,20 +366,27 @@ const data = {
     rack: document.getElementById('rack').value,
     box: document.getElementById('box').value
 };
+const formData = new FormData();
+formData.append("usuario", data.usuario);
+formData.append("codigo", data.codigo);
+formData.append("descripcion", data.descripcion);
+formData.append("entrada", data.entrada);
+formData.append("salida", data.salida);
+formData.append("rack", data.rack);
+formData.append("box", data.box);
 
-            fetch(scriptURL, {
-                method: 'POST',
-                body: JSON.stringify(data),
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' }
-            })
-            .then(() => {
-                alert('Datos enviados correctamente');
-                document.getElementById('form').reset();
-                entradaInput.disabled = false;
-                salidaInput.disabled = false;
-            })
-            .catch(error => alert('Error al enviar: ' + error.message));
+fetch(scriptURL, {
+  method: 'POST',
+  body: formData
+})
+.then(() => {
+  alert('Datos enviados correctamente');
+  document.getElementById('form').reset();
+  entradaInput.disabled = false;
+  salidaInput.disabled = false;
+})
+.catch(error => alert('Error al enviar: ' + error.message));
+
         });
     </script>
 </body>
