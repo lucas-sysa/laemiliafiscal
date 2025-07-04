@@ -68,6 +68,10 @@
       max-width: 400px;
       margin-top: 20px;
     }
+
+    #enviarBtn {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -83,11 +87,13 @@
       <input placeholder="Box" id="box" required readonly>
     </form>
     <button type="button" onclick="iniciarEscaneo()">Iniciar escaneo</button>
+    <button type="button" id="enviarBtn" onclick="enviarFormulario()">Enviar formulario</button>
     <div id="reader"></div>
   </div>
 
   <script>
     const scriptURL = 'https://script.google.com/macros/s/AKfycbzcLIGphXIexS9Ycu4usnOBVzWRYLwRCDX0sks1AGp6PCEVQ99bciyAQl7kAloz5G11/exec';
+
     const entradaInput = document.getElementById('entrada');
     const salidaInput = document.getElementById('salida');
 
@@ -103,15 +109,13 @@
     };
 
     const campos = ['usuario', 'codigo', 'descripcion', 'entrada', 'salida', 'rack', 'box'];
-    let paso = 0;
     let html5QrCode;
     let escaneando = false;
 
     function iniciarEscaneo() {
       limpiarFormulario();
-      paso = 0;
-      html5QrCode = new Html5Qrcode("reader");
       escaneando = true;
+      html5QrCode = new Html5Qrcode("reader");
 
       html5QrCode.start(
         { facingMode: "environment" },
@@ -125,80 +129,49 @@
     }
 
     function procesarEscaneo(texto) {
-      if (paso >= campos.length) return;
+      texto = texto.trim();
 
-      const campo = campos[paso];
-      const input = document.getElementById(campo);
-
-      // No sobrescribir campos ya cargados
-      if (input.value !== "") {
-        paso++;
-        procesarEscaneo(texto);
-        return;
-      }
-
-      switch (campo) {
-        case 'usuario':
-          input.value = texto;
-          break;
-
-        case 'codigo':
-          input.value = texto.toUpperCase();
-          setDescripcion();
-          break;
-
-        case 'descripcion':
-          setDescripcion();
-          break;
-
-        case 'entrada':
-          if (salidaInput.value !== "") {
-            paso++;
-            procesarEscaneo(texto);
-            return;
-          }
-          const entrada = parseInt(texto);
-          if (isNaN(entrada) || entrada < 0) {
-            alert("Entrada debe ser un número positivo.");
-            return;
-          }
-          entradaInput.value = entrada;
-          salidaInput.readOnly = true;
-          break;
-
-        case 'salida':
-          if (entradaInput.value !== "") {
-            paso++;
-            procesarEscaneo(texto);
-            return;
-          }
-          const salida = parseInt(texto);
-          if (isNaN(salida) || salida < 0) {
-            alert("Salida debe ser un número positivo.");
-            return;
-          }
-          salidaInput.value = salida;
+      if (!document.getElementById('usuario').value) {
+        document.getElementById('usuario').value = texto;
+        document.getElementById('usuario').readOnly = true;
+      } else if (!document.getElementById('codigo').value) {
+        document.getElementById('codigo').value = texto.toUpperCase();
+        setDescripcion();
+        document.getElementById('codigo').readOnly = true;
+      } else if (!document.getElementById('entrada').value && !document.getElementById('salida').value) {
+        const num = parseInt(texto);
+        if (isNaN(num)) {
+          alert("Entrada/Salida debe ser número");
+          return;
+        }
+        if (num >= 0) {
+          entradaInput.value = num;
           entradaInput.readOnly = true;
-          break;
-
-        case 'rack':
-        case 'box':
-          if (!/^[A-Za-z0-9\-]+$/.test(texto)) {
-            alert(`El valor para ${campo.toUpperCase()} debe contener solo letras, números o guiones.`);
-            return;
-          }
-          input.value = texto;
-          break;
+          salidaInput.readOnly = true;
+        } else {
+          salidaInput.value = Math.abs(num);
+          salidaInput.readOnly = true;
+          entradaInput.readOnly = true;
+        }
+      } else if (!document.getElementById('rack').value) {
+        if (!/^[A-Za-z0-9\-]+$/.test(texto)) {
+          alert("Rack debe tener letras/números");
+          return;
+        }
+        document.getElementById('rack').value = texto;
+        document.getElementById('rack').readOnly = true;
+      } else if (!document.getElementById('box').value) {
+        if (!/^[A-Za-z0-9\-]+$/.test(texto)) {
+          alert("Box debe tener letras/números");
+          return;
+        }
+        document.getElementById('box').value = texto;
+        document.getElementById('box').readOnly = true;
       }
 
-      input.readOnly = true;
-      paso++;
-
-      if (paso >= campos.length) {
-        html5QrCode.stop().then(() => {
-          escaneando = false;
-          enviarFormulario();
-        });
+      // Mostrar botón enviar si todo está completo
+      if (todosLosCamposCompletos()) {
+        document.getElementById('enviarBtn').style.display = 'block';
       }
     }
 
@@ -207,23 +180,33 @@
       const descripcion = productos[codigo] || '';
       document.getElementById('descripcion').value = descripcion;
       document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
+      document.getElementById('descripcion').readOnly = true;
+    }
+
+    function todosLosCamposCompletos() {
+      const usuario = document.getElementById('usuario').value;
+      const codigo = document.getElementById('codigo').value;
+      const descripcion = document.getElementById('descripcion').value;
+      const rack = document.getElementById('rack').value;
+      const box = document.getElementById('box').value;
+      const entrada = entradaInput.value;
+      const salida = salidaInput.value;
+      return usuario && codigo && descripcion && rack && box && (entrada || salida);
     }
 
     function enviarFormulario() {
-      const entradaValue = entradaInput.value.trim();
-      const salidaValue = salidaInput.value.trim();
-      if (entradaValue === "" && salidaValue === "") {
-        alert("Debes ingresar una entrada o una salida.");
+      if (!todosLosCamposCompletos()) {
+        alert("Faltan campos por completar.");
         return;
       }
 
-      let salidaNegativa = salidaValue ? `-${Math.abs(parseInt(salidaValue))}` : "0";
+      const salidaNegativa = salidaInput.value ? `-${Math.abs(parseInt(salidaInput.value))}` : "0";
 
       const data = {
         usuario: document.getElementById('usuario').value,
         codigo: document.getElementById('codigo').value,
         descripcion: document.getElementById('descripcion').value,
-        entrada: entradaValue || "0",
+        entrada: entradaInput.value || "0",
         salida: salidaNegativa,
         rack: document.getElementById('rack').value,
         box: document.getElementById('box').value
@@ -238,6 +221,8 @@
       })
       .then(() => {
         alert("Formulario enviado correctamente");
+        html5QrCode.stop();
+        escaneando = false;
         limpiarFormulario();
       })
       .catch(error => alert("Error al enviar: " + error.message));
@@ -252,8 +237,8 @@
       entradaInput.readOnly = false;
       salidaInput.readOnly = false;
       document.getElementById('reader').innerHTML = "";
+      document.getElementById('enviarBtn').style.display = 'none';
     }
   </script>
 </body>
 </html>
-
