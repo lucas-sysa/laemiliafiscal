@@ -114,8 +114,9 @@
     document.getElementById('codigo').addEventListener('input', function () {
       const codigoIngresado = this.value.trim().toUpperCase();
       const descripcion = productos[codigoIngresado];
-      document.getElementById('descripcion').value = descripcion || '';
-      document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
+      const descInput = document.getElementById('descripcion');
+      descInput.value = descripcion || '';
+      descInput.placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
     });
 
     const campos = ['usuario', 'codigo', 'descripcion', 'entrada_o_salida', 'rack', 'box'];
@@ -143,7 +144,7 @@
           });
         },
         (errorMessage) => {
-          // se ignora
+          // ignoramos errores de escaneo
         }
       ).catch(err => {
         alert("No se pudo iniciar la cámara: " + err);
@@ -156,8 +157,10 @@
       if (campo === 'descripcion') {
         const codigo = document.getElementById('codigo').value.trim().toUpperCase();
         const descripcion = productos[codigo] || '';
-        document.getElementById('descripcion').value = descripcion;
-        document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
+        const inputDesc = document.getElementById('descripcion');
+        inputDesc.value = descripcion;
+        inputDesc.placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
+        inputDesc.readOnly = true; // bloqueamos descripción
         paso++;
         escanearSiguiente();
         return;
@@ -174,12 +177,12 @@
           salidaInput.value = Math.abs(valor);
           entradaInput.value = '';
           entradaInput.disabled = true;
-          salidaInput.disabled = false;
+          salidaInput.disabled = true; // bloqueamos salida
         } else {
           entradaInput.value = valor;
           salidaInput.value = '';
           salidaInput.disabled = true;
-          entradaInput.disabled = false;
+          entradaInput.disabled = true; // bloqueamos entrada
         }
         paso++;
         escanearSiguiente();
@@ -188,6 +191,7 @@
 
       const input = document.getElementById(campo);
       input.value = texto;
+      input.readOnly = true; // bloqueamos input escaneado
       paso++;
       escanearSiguiente();
     }
@@ -225,11 +229,17 @@
       .then(() => {
         alert('Formulario enviado correctamente');
         document.getElementById('form').reset();
-        entradaInput.disabled = false;
-        salidaInput.disabled = false;
+
+        // Rehabilitar todos los campos para un nuevo ciclo
+        const inputs = document.querySelectorAll('#form input');
+        inputs.forEach(input => {
+          input.readOnly = false;
+          input.disabled = false;
+        });
+
         document.getElementById('reader').innerHTML = "";
-        paso = 0; // reinicia
-        escanearSiguiente(); // vuelve a empezar
+        paso = 0; // reiniciamos contador
+        escanearSiguiente(); // arrancamos otro ciclo automático si se desea
       })
       .catch(error => alert('Error al enviar: ' + error.message));
     }
