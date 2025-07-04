@@ -72,7 +72,7 @@
 </head>
 <body>
   <div class="form-container">
-    <h2>Gestión de Stock Fiscal</h2>
+    <h2>Gestión de Stock</h2>
     <form id="form">
       <input placeholder="Escanear tarjeta del operador" id="usuario" required readonly>
       <input placeholder="Código" id="codigo" required readonly>
@@ -82,13 +82,12 @@
       <input placeholder="Rack" id="rack" required readonly>
       <input placeholder="Box" id="box" required readonly>
     </form>
-    <button type="button" onclick="iniciarEscaneo(event)">Iniciar escaneo</button>
+    <button type="button" onclick="iniciarEscaneo()">Iniciar escaneo</button>
     <div id="reader"></div>
   </div>
 
   <script>
     const scriptURL = 'https://script.google.com/macros/s/AKfycbzcLIGphXIexS9Ycu4usnOBVzWRYLwRCDX0sks1AGp6PCEVQ99bciyAQl7kAloz5G11/exec';
-
     const entradaInput = document.getElementById('entrada');
     const salidaInput = document.getElementById('salida');
 
@@ -103,66 +102,48 @@
       "KIT001": "Kit de asientos"
     };
 
-    function setDescripcion() {
-      const codigo = document.getElementById('codigo').value.trim().toUpperCase();
-      const descripcion = productos[codigo] || '';
-      document.getElementById('descripcion').value = descripcion;
-      document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
-    }
-
     const campos = ['usuario', 'codigo', 'descripcion', 'entrada', 'salida', 'rack', 'box'];
     let paso = 0;
     let html5QrCode;
+    let escaneando = false;
 
-function iniciarEscaneo(event) {
-  if (event) event.preventDefault();
-  paso = 0;
-  limpiarFormulario();
-  html5QrCode = new Html5Qrcode("reader");
-  escanearSiguiente();
-}
-
-    function escanearSiguiente() {
-      if (paso >= campos.length) {
-        enviarFormulario();
-        return;
-      }
-      const campoActual = campos[paso];
+    function iniciarEscaneo() {
+      limpiarFormulario();
+      paso = 0;
+      html5QrCode = new Html5Qrcode("reader");
+      escaneando = true;
 
       html5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
         (decodedText) => {
-          html5QrCode.stop().then(() => {
-            procesarEscaneo(decodedText.trim());
-          });
+          if (!escaneando) return;
+          procesarEscaneo(decodedText.trim());
         },
-        (errorMessage) => {
-          // Ignorar errores por ahora
-        }
-      ).catch(err => {
-        alert("No se pudo iniciar la cámara: " + err);
-      });
+        (errorMessage) => {}
+      ).catch(err => alert("No se pudo iniciar la cámara: " + err));
     }
 
     function procesarEscaneo(texto) {
-      const campo = campos[paso];
+      if (paso >= campos.length) return;
 
-      if (document.getElementById(campo).value !== "") {
+      const campo = campos[paso];
+      const input = document.getElementById(campo);
+
+      // No sobrescribir campos ya cargados
+      if (input.value !== "") {
         paso++;
-        escanearSiguiente();
+        procesarEscaneo(texto);
         return;
       }
 
       switch (campo) {
         case 'usuario':
-          if (!texto) return alert('Dato vacío para operador');
-          document.getElementById('usuario').value = texto;
+          input.value = texto;
           break;
 
         case 'codigo':
-          if (!texto) return alert('Código no puede estar vacío');
-          document.getElementById('codigo').value = texto.toUpperCase();
+          input.value = texto.toUpperCase();
           setDescripcion();
           break;
 
@@ -171,54 +152,68 @@ function iniciarEscaneo(event) {
           break;
 
         case 'entrada':
-          if (salidaInput.value.trim() !== '') {
+          if (salidaInput.value !== "") {
             paso++;
-            escanearSiguiente();
+            procesarEscaneo(texto);
             return;
           }
           const entrada = parseInt(texto);
-          if (isNaN(entrada) || entrada < 0) return alert('Entrada debe ser un número positivo');
+          if (isNaN(entrada) || entrada < 0) {
+            alert("Entrada debe ser un número positivo.");
+            return;
+          }
           entradaInput.value = entrada;
-          entradaInput.readOnly = true;
           salidaInput.readOnly = true;
           break;
 
         case 'salida':
-          if (entradaInput.value.trim() !== '') {
+          if (entradaInput.value !== "") {
             paso++;
-            escanearSiguiente();
+            procesarEscaneo(texto);
             return;
           }
           const salida = parseInt(texto);
-          if (isNaN(salida) || salida < 0) return alert('Salida debe ser un número positivo');
+          if (isNaN(salida) || salida < 0) {
+            alert("Salida debe ser un número positivo.");
+            return;
+          }
           salidaInput.value = salida;
-          salidaInput.readOnly = true;
           entradaInput.readOnly = true;
           break;
 
         case 'rack':
         case 'box':
           if (!/^[A-Za-z0-9\-]+$/.test(texto)) {
-            return alert(`El valor para ${campo.toUpperCase()} debe contener solo letras, números o guiones.`);
+            alert(`El valor para ${campo.toUpperCase()} debe contener solo letras, números o guiones.`);
+            return;
           }
-          document.getElementById(campo).value = texto;
+          input.value = texto;
           break;
-
-        default:
-          return alert('Campo no reconocido');
       }
 
-      document.getElementById(campo).readOnly = true;
+      input.readOnly = true;
       paso++;
-      escanearSiguiente();
+
+      if (paso >= campos.length) {
+        html5QrCode.stop().then(() => {
+          escaneando = false;
+          enviarFormulario();
+        });
+      }
+    }
+
+    function setDescripcion() {
+      const codigo = document.getElementById('codigo').value.trim().toUpperCase();
+      const descripcion = productos[codigo] || '';
+      document.getElementById('descripcion').value = descripcion;
+      document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
     }
 
     function enviarFormulario() {
       const entradaValue = entradaInput.value.trim();
       const salidaValue = salidaInput.value.trim();
-
       if (entradaValue === "" && salidaValue === "") {
-        alert("Debes ingresar una entrada o una salida de stock.");
+        alert("Debes ingresar una entrada o una salida.");
         return;
       }
 
@@ -235,21 +230,17 @@ function iniciarEscaneo(event) {
       };
 
       const formData = new FormData();
-      for (const key in data) {
-        formData.append(key, data[key]);
-      }
+      for (const key in data) formData.append(key, data[key]);
 
       fetch(scriptURL, {
         method: 'POST',
         body: formData
       })
       .then(() => {
-        alert('Formulario enviado correctamente');
+        alert("Formulario enviado correctamente");
         limpiarFormulario();
-        paso = 0;
-        escanearSiguiente();
       })
-      .catch(error => alert('Error al enviar: ' + error.message));
+      .catch(error => alert("Error al enviar: " + error.message));
     }
 
     function limpiarFormulario() {
@@ -260,7 +251,7 @@ function iniciarEscaneo(event) {
       });
       entradaInput.readOnly = false;
       salidaInput.readOnly = false;
-      document.getElementById('reader').innerHTML = '';
+      document.getElementById('reader').innerHTML = "";
     }
   </script>
 </body>
