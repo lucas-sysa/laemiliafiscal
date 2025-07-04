@@ -74,7 +74,7 @@
   <div class="form-container">
     <h2>Gestión de Stock</h2>
     <form id="form">
-      <input placeholder="Escanear tarjeta del operador" id="usuario" required autofocus readonly>
+      <input placeholder="Escanear tarjeta del operador" id="usuario" required readonly>
       <input placeholder="Código" id="codigo" required readonly>
       <input placeholder="Descripción" id="descripcion" required readonly>
       <input type="number" placeholder="Entrada de stock" id="entrada" readonly>
@@ -100,19 +100,15 @@
       "BA0001": "Bateria",
       "RUD001": "Rueda Delantera",
       "RUT001": "Rueda Trasera",
-      "KIT001": "Kit de asientos",
+      "KIT001": "Kit de asientos"
     };
 
-    // Para autocompletar descripción al cargar código manual o escaneado
     function setDescripcion() {
-      const codigoIngresado = document.getElementById('codigo').value.trim().toUpperCase();
-      const descripcion = productos[codigoIngresado] || '';
-      const descInput = document.getElementById('descripcion');
-      descInput.value = descripcion;
-      descInput.placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
+      const codigo = document.getElementById('codigo').value.trim().toUpperCase();
+      const descripcion = productos[codigo] || '';
+      document.getElementById('descripcion').value = descripcion;
+      document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
     }
-
-    document.getElementById('codigo').addEventListener('input', setDescripcion);
 
     const campos = ['usuario', 'codigo', 'descripcion', 'entrada', 'salida', 'rack', 'box'];
     let paso = 0;
@@ -131,7 +127,6 @@
         return;
       }
       const campoActual = campos[paso];
-      mostrarMensaje(`Escaneá: ${campoActual}`);
 
       html5QrCode.start(
         { facingMode: "environment" },
@@ -142,7 +137,7 @@
           });
         },
         (errorMessage) => {
-          // No mostrar errores de escaneo constantemente
+          // Ignorar errores por ahora
         }
       ).catch(err => {
         alert("No se pudo iniciar la cámara: " + err);
@@ -152,128 +147,67 @@
     function procesarEscaneo(texto) {
       const campo = campos[paso];
 
-      // Evitar que modifique campo ya cargado (por si re-escanean sin reiniciar)
-      if (campo === 'usuario' && document.getElementById('usuario').value) {
-        paso++;
-        escanearSiguiente();
-        return;
-      }
-      if (campo === 'codigo' && document.getElementById('codigo').value) {
-        paso++;
-        escanearSiguiente();
-        return;
-      }
-      if (campo === 'descripcion' && document.getElementById('descripcion').value) {
-        paso++;
-        escanearSiguiente();
-        return;
-      }
-      if (campo === 'entrada' && document.getElementById('entrada').value) {
-        paso++;
-        escanearSiguiente();
-        return;
-      }
-      if (campo === 'salida' && document.getElementById('salida').value) {
-        paso++;
-        escanearSiguiente();
-        return;
-      }
-      if (campo === 'rack' && document.getElementById('rack').value) {
-        paso++;
-        escanearSiguiente();
-        return;
-      }
-      if (campo === 'box' && document.getElementById('box').value) {
+      if (document.getElementById(campo).value !== "") {
         paso++;
         escanearSiguiente();
         return;
       }
 
-      // Validaciones específicas para cada campo escaneado:
-      switch(campo) {
+      switch (campo) {
         case 'usuario':
-          if (!texto) {
-            alert('El dato escaneado para operador está vacío.');
-            return;
-          }
+          if (!texto) return alert('Dato vacío para operador');
           document.getElementById('usuario').value = texto;
-          document.getElementById('usuario').readOnly = true;
           break;
 
         case 'codigo':
-          if (!texto) {
-            alert('El código no puede estar vacío.');
-            return;
-          }
+          if (!texto) return alert('Código no puede estar vacío');
           document.getElementById('codigo').value = texto.toUpperCase();
           setDescripcion();
-          document.getElementById('codigo').readOnly = true;
-          // descripción se bloqueará en siguiente paso
           break;
 
         case 'descripcion':
-          // Se rellena automático, sólo bloqueamos
           setDescripcion();
-          document.getElementById('descripcion').readOnly = true;
           break;
 
         case 'entrada':
           if (salidaInput.value.trim() !== '') {
-            // Si salida tiene valor, no aceptamos entrada
             paso++;
             escanearSiguiente();
             return;
           }
-          const entradaNum = parseInt(texto);
-          if (isNaN(entradaNum) || entradaNum < 0) {
-            alert('Entrada debe ser un número entero positivo.');
-            return;
-          }
-          entradaInput.value = entradaNum;
+          const entrada = parseInt(texto);
+          if (isNaN(entrada) || entrada < 0) return alert('Entrada debe ser número positivo');
+          entradaInput.value = entrada;
           entradaInput.readOnly = true;
-          salidaInput.readOnly = true; // bloqueamos salida para que no pueda ingresarla
+          salidaInput.readOnly = true;
           break;
 
         case 'salida':
           if (entradaInput.value.trim() !== '') {
-            // Si entrada tiene valor, no aceptamos salida
             paso++;
             escanearSiguiente();
             return;
           }
-          const salidaNum = parseInt(texto);
-          if (isNaN(salidaNum) || salidaNum < 0) {
-            alert('Salida debe ser un número entero positivo.');
-            return;
-          }
-          salidaInput.value = salidaNum;
+          const salida = parseInt(texto);
+          if (isNaN(salida) || salida < 0) return alert('Salida debe ser número positivo');
+          salidaInput.value = salida;
           salidaInput.readOnly = true;
-          entradaInput.readOnly = true; // bloqueamos entrada para que no pueda ingresarla
+          entradaInput.readOnly = true;
           break;
 
         case 'rack':
-          if (!texto) {
-            alert('Rack no puede estar vacío.');
-            return;
-          }
-          document.getElementById('rack').value = texto;
-          document.getElementById('rack').readOnly = true;
-          break;
-
         case 'box':
-          if (!texto) {
-            alert('Box no puede estar vacío.');
-            return;
+          if (!/^[A-Za-z0-9\-]+$/.test(texto)) {
+            return alert(`El valor para ${campo.toUpperCase()} debe contener solo letras, números o guiones.`);
           }
-          document.getElementById('box').value = texto;
-          document.getElementById('box').readOnly = true;
+          document.getElementById(campo).value = texto;
           break;
 
         default:
-          alert('Campo no reconocido.');
-          return;
+          return alert('Campo no reconocido');
       }
 
+      document.getElementById(campo).readOnly = true;
       paso++;
       escanearSiguiente();
     }
@@ -325,18 +259,7 @@
       });
       entradaInput.readOnly = false;
       salidaInput.readOnly = false;
-      entradaInput.value = '';
-      salidaInput.value = '';
-      entradaInput.disabled = false;
-      salidaInput.disabled = false;
-      document.getElementById('descripcion').value = '';
-      document.getElementById('descripcion').placeholder = 'Descripción';
       document.getElementById('reader').innerHTML = '';
-    }
-
-    function mostrarMensaje(msg) {
-      // Si querés podés mostrar instrucciones en pantalla (por ahora uso alert, podés cambiar a div)
-      console.log(msg);
     }
   </script>
 </body>
