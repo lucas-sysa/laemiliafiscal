@@ -38,12 +38,17 @@
       margin-bottom: 15px;
       border: 1px solid #ccc;
       border-radius: 8px;
-      transition: border-color 0.3s;
+      transition: border-color 0.3s, background-color 0.3s;
     }
 
     input:focus {
       border-color: #74ebd5;
       outline: none;
+    }
+
+    input.highlight {
+      background-color: #c8f7c5;
+      border-color: #27ae60;
     }
 
     button {
@@ -78,13 +83,13 @@
   <div class="form-container">
     <h2>Gestión de Stock</h2>
     <form id="form">
-      <input placeholder="Escanear tarjeta del operador" id="usuario" required readonly>
-      <input placeholder="Código" id="codigo" required readonly>
-      <input placeholder="Descripción" id="descripcion" required readonly>
+      <input placeholder="Escanear tarjeta del operador" id="usuario" readonly>
+      <input placeholder="Código" id="codigo" readonly>
+      <input placeholder="Descripción" id="descripcion" readonly>
       <input type="number" placeholder="Entrada de stock" id="entrada" readonly>
       <input type="number" placeholder="Salida de stock" id="salida" readonly>
-      <input placeholder="Rack" id="rack" required readonly>
-      <input placeholder="Box" id="box" required readonly>
+      <input placeholder="Rack" id="rack" readonly>
+      <input placeholder="Box" id="box" readonly>
     </form>
     <button type="button" onclick="iniciarEscaneo()">Iniciar escaneo</button>
     <button type="button" id="enviarBtn" onclick="enviarFormulario()">Enviar formulario</button>
@@ -93,9 +98,6 @@
 
   <script>
     const scriptURL = 'https://script.google.com/macros/s/AKfycbzcLIGphXIexS9Ycu4usnOBVzWRYLwRCDX0sks1AGp6PCEVQ99bciyAQl7kAloz5G11/exec';
-
-    const entradaInput = document.getElementById('entrada');
-    const salidaInput = document.getElementById('salida');
 
     const productos = {
       "CH0001": "Chasis",
@@ -108,7 +110,9 @@
       "KIT001": "Kit de asientos"
     };
 
-    const campos = ['usuario', 'codigo', 'descripcion', 'entrada', 'salida', 'rack', 'box'];
+    const entradaInput = document.getElementById('entrada');
+    const salidaInput = document.getElementById('salida');
+
     let html5QrCode;
     let escaneando = false;
 
@@ -131,45 +135,51 @@
     function procesarEscaneo(texto) {
       texto = texto.trim();
 
-      if (!document.getElementById('usuario').value) {
-        document.getElementById('usuario').value = texto;
-        document.getElementById('usuario').readOnly = true;
-      } else if (!document.getElementById('codigo').value) {
-        document.getElementById('codigo').value = texto.toUpperCase();
-        setDescripcion();
-        document.getElementById('codigo').readOnly = true;
-      } else if (!document.getElementById('entrada').value && !document.getElementById('salida').value) {
-        const num = parseInt(texto);
-        if (isNaN(num)) {
-          alert("Entrada/Salida debe ser número");
-          return;
-        }
-        if (num >= 0) {
-          entradaInput.value = num;
-          entradaInput.readOnly = true;
-          salidaInput.readOnly = true;
+      const secuencia = [
+        { id: 'usuario' },
+        { id: 'codigo', callback: () => setDescripcion() },
+        { id: 'entradaSalida', tipo: 'entradaSalida' },
+        { id: 'rack', tipo: 'alfanumerico' },
+        { id: 'box', tipo: 'alfanumerico' }
+      ];
+
+      for (let campo of secuencia) {
+        if (campo.id === 'entradaSalida') {
+          if (!entradaInput.value && !salidaInput.value) {
+            const valor = parseInt(texto);
+            if (isNaN(valor)) {
+              alert("Entrada o Salida debe ser un número.");
+              return;
+            }
+            if (valor >= 0) {
+              entradaInput.value = valor;
+              entradaInput.readOnly = true;
+              salidaInput.readOnly = true;
+              resaltarCampo('entrada');
+            } else {
+              salidaInput.value = Math.abs(valor);
+              entradaInput.readOnly = true;
+              salidaInput.readOnly = true;
+              resaltarCampo('salida');
+            }
+            break;
+          }
         } else {
-          salidaInput.value = Math.abs(num);
-          salidaInput.readOnly = true;
-          entradaInput.readOnly = true;
+          const input = document.getElementById(campo.id);
+          if (!input.value) {
+            if (campo.tipo === 'alfanumerico' && !/^[A-Za-z0-9\-]+$/.test(texto)) {
+              alert(`${campo.id.toUpperCase()} debe contener solo letras y números.`);
+              return;
+            }
+            input.value = texto.toUpperCase();
+            input.readOnly = true;
+            resaltarCampo(campo.id);
+            if (campo.callback) campo.callback();
+            break;
+          }
         }
-      } else if (!document.getElementById('rack').value) {
-        if (!/^[A-Za-z0-9\-]+$/.test(texto)) {
-          alert("Rack debe tener letras/números");
-          return;
-        }
-        document.getElementById('rack').value = texto;
-        document.getElementById('rack').readOnly = true;
-      } else if (!document.getElementById('box').value) {
-        if (!/^[A-Za-z0-9\-]+$/.test(texto)) {
-          alert("Box debe tener letras/números");
-          return;
-        }
-        document.getElementById('box').value = texto;
-        document.getElementById('box').readOnly = true;
       }
 
-      // Mostrar botón enviar si todo está completo
       if (todosLosCamposCompletos()) {
         document.getElementById('enviarBtn').style.display = 'block';
       }
@@ -177,10 +187,11 @@
 
     function setDescripcion() {
       const codigo = document.getElementById('codigo').value.trim().toUpperCase();
-      const descripcion = productos[codigo] || '';
-      document.getElementById('descripcion').value = descripcion;
-      document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
-      document.getElementById('descripcion').readOnly = true;
+      const descripcion = productos[codigo] || 'Código no reconocido';
+      const descInput = document.getElementById('descripcion');
+      descInput.value = descripcion;
+      descInput.readOnly = true;
+      resaltarCampo('descripcion');
     }
 
     function todosLosCamposCompletos() {
@@ -233,11 +244,18 @@
       inputs.forEach(input => {
         input.value = '';
         input.readOnly = false;
+        input.classList.remove('highlight');
       });
       entradaInput.readOnly = false;
       salidaInput.readOnly = false;
       document.getElementById('reader').innerHTML = "";
       document.getElementById('enviarBtn').style.display = 'none';
+    }
+
+    function resaltarCampo(id) {
+      const input = document.getElementById(id);
+      input.classList.add('highlight');
+      setTimeout(() => input.classList.remove('highlight'), 1500);
     }
   </script>
 </body>
