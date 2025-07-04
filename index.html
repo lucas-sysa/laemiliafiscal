@@ -133,7 +133,17 @@
     }
 
     function procesarEscaneo(texto) {
-      texto = texto.trim();
+      texto = texto.trim().toUpperCase();
+
+      // Verificar que el dato NO esté ya en otro campo
+      const camposForm = ['usuario', 'codigo', 'entrada', 'salida', 'rack', 'box'];
+      for (const campoId of camposForm) {
+        const val = document.getElementById(campoId).value.toUpperCase();
+        if (val === texto) {
+          alert(`El valor "${texto}" ya fue ingresado en el campo "${campoId.toUpperCase()}". Escanea un dato distinto.`);
+          return;
+        }
+      }
 
       const secuencia = [
         { id: 'usuario' },
@@ -171,7 +181,7 @@
               alert(`${campo.id.toUpperCase()} debe contener solo letras y números.`);
               return;
             }
-            input.value = texto.toUpperCase();
+            input.value = texto;
             input.readOnly = true;
             resaltarCampo(campo.id);
             if (campo.callback) campo.callback();
