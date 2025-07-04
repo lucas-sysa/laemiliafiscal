@@ -82,7 +82,7 @@
       <input placeholder="Rack" id="rack" required readonly>
       <input placeholder="Box" id="box" required readonly>
     </form>
-    <button onclick="iniciarEscaneo()">Iniciar escaneo</button>
+    <button type="button" onclick="iniciarEscaneo(event)">Iniciar escaneo</button>
     <div id="reader"></div>
   </div>
 
@@ -114,12 +114,13 @@
     let paso = 0;
     let html5QrCode;
 
-    function iniciarEscaneo() {
-      paso = 0;
-      limpiarFormulario();
-      html5QrCode = new Html5Qrcode("reader");
-      escanearSiguiente();
-    }
+function iniciarEscaneo(event) {
+  if (event) event.preventDefault();
+  paso = 0;
+  limpiarFormulario();
+  html5QrCode = new Html5Qrcode("reader");
+  escanearSiguiente();
+}
 
     function escanearSiguiente() {
       if (paso >= campos.length) {
