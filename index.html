@@ -74,13 +74,13 @@
   <div class="form-container">
     <h2>Gestión de Stock</h2>
     <form id="form">
-      <input placeholder="Escanear tarjeta del operador" id="usuario" required autofocus>
-      <input placeholder="Código" id="codigo" required>
+      <input placeholder="Escanear tarjeta del operador" id="usuario" required autofocus readonly>
+      <input placeholder="Código" id="codigo" required readonly>
       <input placeholder="Descripción" id="descripcion" required readonly>
-      <input type="number" placeholder="Entrada de stock" id="entrada">
-      <input type="number" placeholder="Salida de stock" id="salida">
-      <input placeholder="Rack" id="rack" required>
-      <input placeholder="Box" id="box" required>
+      <input type="number" placeholder="Entrada de stock" id="entrada" readonly>
+      <input type="number" placeholder="Salida de stock" id="salida" readonly>
+      <input placeholder="Rack" id="rack" required readonly>
+      <input placeholder="Box" id="box" required readonly>
     </form>
     <button onclick="iniciarEscaneo()">Iniciar escaneo</button>
     <div id="reader"></div>
@@ -91,14 +91,6 @@
 
     const entradaInput = document.getElementById('entrada');
     const salidaInput = document.getElementById('salida');
-
-    entradaInput.addEventListener('input', () => {
-      salidaInput.disabled = entradaInput.value !== "";
-    });
-
-    salidaInput.addEventListener('input', () => {
-      entradaInput.disabled = salidaInput.value !== "";
-    });
 
     const productos = {
       "CH0001": "Chasis",
@@ -111,13 +103,16 @@
       "KIT001": "Kit de asientos",
     };
 
-    document.getElementById('codigo').addEventListener('input', function () {
-      const codigoIngresado = this.value.trim().toUpperCase();
-      const descripcion = productos[codigoIngresado];
+    // Para autocompletar descripción al cargar código manual o escaneado
+    function setDescripcion() {
+      const codigoIngresado = document.getElementById('codigo').value.trim().toUpperCase();
+      const descripcion = productos[codigoIngresado] || '';
       const descInput = document.getElementById('descripcion');
-      descInput.value = descripcion || '';
+      descInput.value = descripcion;
       descInput.placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
-    });
+    }
+
+    document.getElementById('codigo').addEventListener('input', setDescripcion);
 
     const campos = ['usuario', 'codigo', 'descripcion', 'entrada', 'salida', 'rack', 'box'];
     let paso = 0;
@@ -125,6 +120,7 @@
 
     function iniciarEscaneo() {
       paso = 0;
+      limpiarFormulario();
       html5QrCode = new Html5Qrcode("reader");
       escanearSiguiente();
     }
@@ -134,6 +130,8 @@
         enviarFormulario();
         return;
       }
+      const campoActual = campos[paso];
+      mostrarMensaje(`Escaneá: ${campoActual}`);
 
       html5QrCode.start(
         { facingMode: "environment" },
@@ -144,7 +142,7 @@
           });
         },
         (errorMessage) => {
-          // ignoramos errores de escaneo
+          // No mostrar errores de escaneo constantemente
         }
       ).catch(err => {
         alert("No se pudo iniciar la cámara: " + err);
@@ -154,60 +152,128 @@
     function procesarEscaneo(texto) {
       const campo = campos[paso];
 
-      if (campo === 'descripcion') {
-        const codigo = document.getElementById('codigo').value.trim().toUpperCase();
-        const descripcion = productos[codigo] || '';
-        const inputDesc = document.getElementById('descripcion');
-        inputDesc.value = descripcion;
-        inputDesc.placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
-        inputDesc.readOnly = true;
+      // Evitar que modifique campo ya cargado (por si re-escanean sin reiniciar)
+      if (campo === 'usuario' && document.getElementById('usuario').value) {
+        paso++;
+        escanearSiguiente();
+        return;
+      }
+      if (campo === 'codigo' && document.getElementById('codigo').value) {
+        paso++;
+        escanearSiguiente();
+        return;
+      }
+      if (campo === 'descripcion' && document.getElementById('descripcion').value) {
+        paso++;
+        escanearSiguiente();
+        return;
+      }
+      if (campo === 'entrada' && document.getElementById('entrada').value) {
+        paso++;
+        escanearSiguiente();
+        return;
+      }
+      if (campo === 'salida' && document.getElementById('salida').value) {
+        paso++;
+        escanearSiguiente();
+        return;
+      }
+      if (campo === 'rack' && document.getElementById('rack').value) {
+        paso++;
+        escanearSiguiente();
+        return;
+      }
+      if (campo === 'box' && document.getElementById('box').value) {
         paso++;
         escanearSiguiente();
         return;
       }
 
-      if (campo === 'entrada') {
-        if (salidaInput.value.trim() !== '') {
-          paso++;
-          escanearSiguiente();
+      // Validaciones específicas para cada campo escaneado:
+      switch(campo) {
+        case 'usuario':
+          if (!texto) {
+            alert('El dato escaneado para operador está vacío.');
+            return;
+          }
+          document.getElementById('usuario').value = texto;
+          document.getElementById('usuario').readOnly = true;
+          break;
+
+        case 'codigo':
+          if (!texto) {
+            alert('El código no puede estar vacío.');
+            return;
+          }
+          document.getElementById('codigo').value = texto.toUpperCase();
+          setDescripcion();
+          document.getElementById('codigo').readOnly = true;
+          // descripción se bloqueará en siguiente paso
+          break;
+
+        case 'descripcion':
+          // Se rellena automático, sólo bloqueamos
+          setDescripcion();
+          document.getElementById('descripcion').readOnly = true;
+          break;
+
+        case 'entrada':
+          if (salidaInput.value.trim() !== '') {
+            // Si salida tiene valor, no aceptamos entrada
+            paso++;
+            escanearSiguiente();
+            return;
+          }
+          const entradaNum = parseInt(texto);
+          if (isNaN(entradaNum) || entradaNum < 0) {
+            alert('Entrada debe ser un número entero positivo.');
+            return;
+          }
+          entradaInput.value = entradaNum;
+          entradaInput.readOnly = true;
+          salidaInput.readOnly = true; // bloqueamos salida para que no pueda ingresarla
+          break;
+
+        case 'salida':
+          if (entradaInput.value.trim() !== '') {
+            // Si entrada tiene valor, no aceptamos salida
+            paso++;
+            escanearSiguiente();
+            return;
+          }
+          const salidaNum = parseInt(texto);
+          if (isNaN(salidaNum) || salidaNum < 0) {
+            alert('Salida debe ser un número entero positivo.');
+            return;
+          }
+          salidaInput.value = salidaNum;
+          salidaInput.readOnly = true;
+          entradaInput.readOnly = true; // bloqueamos entrada para que no pueda ingresarla
+          break;
+
+        case 'rack':
+          if (!texto) {
+            alert('Rack no puede estar vacío.');
+            return;
+          }
+          document.getElementById('rack').value = texto;
+          document.getElementById('rack').readOnly = true;
+          break;
+
+        case 'box':
+          if (!texto) {
+            alert('Box no puede estar vacío.');
+            return;
+          }
+          document.getElementById('box').value = texto;
+          document.getElementById('box').readOnly = true;
+          break;
+
+        default:
+          alert('Campo no reconocido.');
           return;
-        }
-        const valor = parseInt(texto);
-        if (isNaN(valor) || valor < 0) {
-          alert("Entrada debe ser un número positivo.");
-          return;
-        }
-        entradaInput.value = valor;
-        entradaInput.disabled = true;
-        salidaInput.disabled = true;
-        paso++;
-        escanearSiguiente();
-        return;
       }
 
-      if (campo === 'salida') {
-        if (entradaInput.value.trim() !== '') {
-          paso++;
-          escanearSiguiente();
-          return;
-        }
-        const valor = parseInt(texto);
-        if (isNaN(valor) || valor < 0) {
-          alert("Salida debe ser un número positivo.");
-          return;
-        }
-        salidaInput.value = valor;
-        salidaInput.disabled = true;
-        entradaInput.disabled = true;
-        paso++;
-        escanearSiguiente();
-        return;
-      }
-
-      // Para usuario, codigo, rack, box:
-      const input = document.getElementById(campo);
-      input.value = texto;
-      input.readOnly = true;
       paso++;
       escanearSiguiente();
     }
@@ -244,22 +310,34 @@
       })
       .then(() => {
         alert('Formulario enviado correctamente');
-        document.getElementById('form').reset();
-
-        // Rehabilitar todos los campos para un nuevo ciclo
-        const inputs = document.querySelectorAll('#form input');
-        inputs.forEach(input => {
-          input.readOnly = false;
-          input.disabled = false;
-        });
-
-        document.getElementById('reader').innerHTML = "";
+        limpiarFormulario();
         paso = 0;
         escanearSiguiente();
       })
       .catch(error => alert('Error al enviar: ' + error.message));
     }
+
+    function limpiarFormulario() {
+      const inputs = document.querySelectorAll('#form input');
+      inputs.forEach(input => {
+        input.value = '';
+        input.readOnly = false;
+      });
+      entradaInput.readOnly = false;
+      salidaInput.readOnly = false;
+      entradaInput.value = '';
+      salidaInput.value = '';
+      entradaInput.disabled = false;
+      salidaInput.disabled = false;
+      document.getElementById('descripcion').value = '';
+      document.getElementById('descripcion').placeholder = 'Descripción';
+      document.getElementById('reader').innerHTML = '';
+    }
+
+    function mostrarMensaje(msg) {
+      // Si querés podés mostrar instrucciones en pantalla (por ahora uso alert, podés cambiar a div)
+      console.log(msg);
+    }
   </script>
 </body>
 </html>
-
