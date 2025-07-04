@@ -92,6 +92,14 @@
     const entradaInput = document.getElementById('entrada');
     const salidaInput = document.getElementById('salida');
 
+    entradaInput.addEventListener('input', () => {
+      salidaInput.disabled = entradaInput.value !== "";
+    });
+
+    salidaInput.addEventListener('input', () => {
+      entradaInput.disabled = salidaInput.value !== "";
+    });
+
     const productos = {
       "CH0001": "Chasis",
       "MO0001": "Motores",
@@ -103,33 +111,14 @@
       "KIT001": "Kit de asientos",
     };
 
-    // sonidos (beep cortos en base64)
-    const sonidoEscaneo = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=");
-    const sonidoEnvio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAA==");
-
-    function hacerSonar(audio) {
-      audio.currentTime = 0;
-      audio.play();
-      if (navigator.vibrate) navigator.vibrate(100);
-    }
-
-    entradaInput.addEventListener('input', () => {
-      salidaInput.disabled = entradaInput.value !== "";
+    document.getElementById('codigo').addEventListener('input', function () {
+      const codigoIngresado = this.value.trim().toUpperCase();
+      const descripcion = productos[codigoIngresado];
+      document.getElementById('descripcion').value = descripcion || '';
+      document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
     });
 
-    salidaInput.addEventListener('input', () => {
-      entradaInput.disabled = salidaInput.value !== "";
-    });
-
-    const campos = [
-      { id: 'usuario' },
-      { id: 'codigo' },
-      { id: 'descripcion', autocompletar: true },
-      { id: 'entrada', salida: 'salida', logicaEntradaSalida: true },
-      { id: 'rack' },
-      { id: 'box' }
-    ];
-
+    const campos = ['usuario', 'codigo', 'descripcion', 'entrada_o_salida', 'rack', 'box'];
     let paso = 0;
     let html5QrCode;
 
@@ -153,7 +142,9 @@
             procesarEscaneo(decodedText.trim());
           });
         },
-        (errorMessage) => { /* ignorado */ }
+        (errorMessage) => {
+          // se ignora
+        }
       ).catch(err => {
         alert("No se pudo iniciar la cámara: " + err);
       });
@@ -162,20 +153,17 @@
     function procesarEscaneo(texto) {
       const campo = campos[paso];
 
-      // Autocompletar descripción
-      if (campo.autocompletar) {
+      if (campo === 'descripcion') {
         const codigo = document.getElementById('codigo').value.trim().toUpperCase();
         const descripcion = productos[codigo] || '';
         document.getElementById('descripcion').value = descripcion;
         document.getElementById('descripcion').placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
-        hacerSonar(sonidoEscaneo);
         paso++;
         escanearSiguiente();
         return;
       }
 
-      // Entrada / salida
-      if (campo.logicaEntradaSalida) {
+      if (campo === 'entrada_o_salida') {
         const valor = parseInt(texto);
         if (isNaN(valor)) {
           alert("El valor escaneado no es un número válido.");
@@ -183,25 +171,23 @@
         }
 
         if (valor < 0) {
-          document.getElementById(campo.salida).value = Math.abs(valor);
-          document.getElementById(campo.id).value = '';
-          document.getElementById(campo.id).disabled = true;
-          document.getElementById(campo.salida).disabled = false;
+          salidaInput.value = Math.abs(valor);
+          entradaInput.value = '';
+          entradaInput.disabled = true;
+          salidaInput.disabled = false;
         } else {
-          document.getElementById(campo.id).value = valor;
-          document.getElementById(campo.salida).value = '';
-          document.getElementById(campo.salida).disabled = true;
-          document.getElementById(campo.id).disabled = false;
+          entradaInput.value = valor;
+          salidaInput.value = '';
+          salidaInput.disabled = true;
+          entradaInput.disabled = false;
         }
-        hacerSonar(sonidoEscaneo);
         paso++;
         escanearSiguiente();
         return;
       }
 
-      // Campo normal
-      document.getElementById(campo.id).value = texto;
-      hacerSonar(sonidoEscaneo);
+      const input = document.getElementById(campo);
+      input.value = texto;
       paso++;
       escanearSiguiente();
     }
@@ -237,18 +223,16 @@
         body: formData
       })
       .then(() => {
-        hacerSonar(sonidoEnvio);
         alert('Formulario enviado correctamente');
         document.getElementById('form').reset();
         entradaInput.disabled = false;
         salidaInput.disabled = false;
         document.getElementById('reader').innerHTML = "";
-        paso = 0;
-        escanearSiguiente();
+        paso = 0; // reinicia
+        escanearSiguiente(); // vuelve a empezar
       })
       .catch(error => alert('Error al enviar: ' + error.message));
     }
   </script>
 </body>
 </html>
-
