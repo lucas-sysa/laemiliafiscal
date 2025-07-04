@@ -119,7 +119,7 @@
       descInput.placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
     });
 
-    const campos = ['usuario', 'codigo', 'descripcion', 'entrada_o_salida', 'rack', 'box'];
+    const campos = ['usuario', 'codigo', 'descripcion', 'entrada', 'salida', 'rack', 'box'];
     let paso = 0;
     let html5QrCode;
 
@@ -160,38 +160,54 @@
         const inputDesc = document.getElementById('descripcion');
         inputDesc.value = descripcion;
         inputDesc.placeholder = descripcion ? 'Descripción' : 'Código no reconocido';
-        inputDesc.readOnly = true; // bloqueamos descripción
+        inputDesc.readOnly = true;
         paso++;
         escanearSiguiente();
         return;
       }
 
-      if (campo === 'entrada_o_salida') {
-        const valor = parseInt(texto);
-        if (isNaN(valor)) {
-          alert("El valor escaneado no es un número válido.");
+      if (campo === 'entrada') {
+        if (salidaInput.value.trim() !== '') {
+          paso++;
+          escanearSiguiente();
           return;
         }
-
-        if (valor < 0) {
-          salidaInput.value = Math.abs(valor);
-          entradaInput.value = '';
-          entradaInput.disabled = true;
-          salidaInput.disabled = true; // bloqueamos salida
-        } else {
-          entradaInput.value = valor;
-          salidaInput.value = '';
-          salidaInput.disabled = true;
-          entradaInput.disabled = true; // bloqueamos entrada
+        const valor = parseInt(texto);
+        if (isNaN(valor) || valor < 0) {
+          alert("Entrada debe ser un número positivo.");
+          return;
         }
+        entradaInput.value = valor;
+        entradaInput.disabled = true;
+        salidaInput.disabled = true;
         paso++;
         escanearSiguiente();
         return;
       }
 
+      if (campo === 'salida') {
+        if (entradaInput.value.trim() !== '') {
+          paso++;
+          escanearSiguiente();
+          return;
+        }
+        const valor = parseInt(texto);
+        if (isNaN(valor) || valor < 0) {
+          alert("Salida debe ser un número positivo.");
+          return;
+        }
+        salidaInput.value = valor;
+        salidaInput.disabled = true;
+        entradaInput.disabled = true;
+        paso++;
+        escanearSiguiente();
+        return;
+      }
+
+      // Para usuario, codigo, rack, box:
       const input = document.getElementById(campo);
       input.value = texto;
-      input.readOnly = true; // bloqueamos input escaneado
+      input.readOnly = true;
       paso++;
       escanearSiguiente();
     }
@@ -238,11 +254,12 @@
         });
 
         document.getElementById('reader').innerHTML = "";
-        paso = 0; // reiniciamos contador
-        escanearSiguiente(); // arrancamos otro ciclo automático si se desea
+        paso = 0;
+        escanearSiguiente();
       })
       .catch(error => alert('Error al enviar: ' + error.message));
     }
   </script>
 </body>
 </html>
+
