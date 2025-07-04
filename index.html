@@ -176,7 +176,7 @@
             return;
           }
           const entrada = parseInt(texto);
-          if (isNaN(entrada) || entrada < 0) return alert('Entrada debe ser número positivo');
+          if (isNaN(entrada) || entrada < 0) return alert('Entrada debe ser un número positivo');
           entradaInput.value = entrada;
           entradaInput.readOnly = true;
           salidaInput.readOnly = true;
@@ -189,7 +189,7 @@
             return;
           }
           const salida = parseInt(texto);
-          if (isNaN(salida) || salida < 0) return alert('Salida debe ser número positivo');
+          if (isNaN(salida) || salida < 0) return alert('Salida debe ser un número positivo');
           salidaInput.value = salida;
           salidaInput.readOnly = true;
           entradaInput.readOnly = true;
@@ -264,3 +264,4 @@
   </script>
 </body>
 </html>
+
