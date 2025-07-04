@@ -51,18 +51,22 @@
       border-color: #27ae60;
     }
 
-        button {
-            background-color: #e0e0e0;
-            border: 1px solid #ccc;
-            padding: 8px 16px;
-            color: #000;
-            font: inherit;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #d5d5d5;
-        }
+    button {
+      width: 100%;
+      background: #74ebd5;
+      border: none;
+      color: #fff;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #62d3c0;
+    }
 
     #reader {
       width: 100%;
@@ -88,7 +92,7 @@
       <input placeholder="Box" id="box" readonly>
     </form>
     <button type="button" onclick="iniciarEscaneo()">Iniciar escaneo</button>
-    <button type="button" id="enviarBtn" onclick="enviarFormulario()">Enviar Datos</button>
+    <button type="button" id="enviarBtn" onclick="enviarFormulario()">Enviar formulario</button>
     <div id="reader"></div>
   </div>
 
@@ -128,10 +132,14 @@
       ).catch(err => alert("No se pudo iniciar la cámara: " + err));
     }
 
+    function reproducirBip() {
+      const bip = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==");
+      bip.play();
+    }
+
     function procesarEscaneo(texto) {
       texto = texto.trim().toUpperCase();
 
-      // Verificar que el dato NO esté ya en otro campo
       const camposForm = ['usuario', 'codigo', 'entrada', 'salida', 'rack', 'box'];
       for (const campoId of camposForm) {
         const val = document.getElementById(campoId).value.toUpperCase();
@@ -162,11 +170,13 @@
               entradaInput.readOnly = true;
               salidaInput.readOnly = true;
               resaltarCampo('entrada');
+              reproducirBip();
             } else {
               salidaInput.value = Math.abs(valor);
               entradaInput.readOnly = true;
               salidaInput.readOnly = true;
               resaltarCampo('salida');
+              reproducirBip();
             }
             break;
           }
@@ -180,6 +190,7 @@
             input.value = texto;
             input.readOnly = true;
             resaltarCampo(campo.id);
+            reproducirBip();
             if (campo.callback) campo.callback();
             break;
           }
@@ -198,6 +209,7 @@
       descInput.value = descripcion;
       descInput.readOnly = true;
       resaltarCampo('descripcion');
+      reproducirBip();
     }
 
     function todosLosCamposCompletos() {
@@ -266,3 +278,4 @@
   </script>
 </body>
 </html>
+
